@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # Allow VCAP_REPO to be overriden for testing
-VCAP_REPO=${VCAP_REPO:-https://github.com/cloudfoundry/vcap.git}
+# VCAP_REPO=${VCAP_REPO:-https://github.com/cloudfoundry/vcap.git}
 
 export rvm_trust_rvmrcs_flag=1 # Trust all rmvrcs we find
+echo "export rvm_trust_rvmrcs_flag=1 # Trust all rmvrcs we find" >> ~/.bashrc
 
 OS=`uname -s`
 if [[ $OS == 'Linux' ]]; then
@@ -30,8 +31,9 @@ read -p "Enter the password you want to use for root postgresql user: " POSTGRES
 
 echo "Installing dependencies"
 if [[ $PLATFORM == 'Linux' ]]; then
-  sudo apt-get update
-  sudo apt-get -y install coreutils autoconf curl git-core ruby bison build-essential zlib1g-dev libssl-dev libreadline5-dev
+  sudo aptitude update
+  sudo aptitude -y full-upgrade
+  sudo aptitude -y install coreutils autoconf curl git-core ruby bison build-essential zlib1g-dev libssl-dev libreadline5-dev
 else
   echo "Sorry, we can't install dependencies for your system yet."
 fi
@@ -94,14 +96,19 @@ echo "Getting vcap"
 [ -d ~/cloudfoundry ] || mkdir ~/cloudfoundry
 cd ~/cloudfoundry
 
-[ -d vcap ] || git clone $VCAP_REPO
+if [ ! -d vcap ];then
+	echo -e "\033[01;31mFALTA ~/cloudfoundry/vcap\033[00m"
+	echo "Problemas con el git"
+	exit 1
+fi
 cd vcap
-git submodule update --init
+# git submodule update --init
 gem install vmc --no-rdoc --no-ri
 
 echo "Setting up vcap."
 cd ~/cloudfoundry/vcap
 
+source ~/.bashrc
 sudo setup/vcap_setup -a -s -p "$MYSQL_PASS" -q "$POSTGRESQL_PASS"
 
 cd ~/cloudfoundry/vcap/services/mysql/config
@@ -121,6 +128,7 @@ sudo /etc/init.d/nginx restart
 echo "Installing bundler"
 cd ~/cloudfoundry/vcap
 gem install bundler --no-rdoc --no-ri
+rake bundler:package
 rake bundler:install
 
 # don't start up vcap in this shell
